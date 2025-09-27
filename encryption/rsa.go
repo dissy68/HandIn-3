@@ -2,6 +2,7 @@ package encryption
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"math/big"
 )
 
@@ -16,8 +17,8 @@ type PublicKey struct {
 }
 
 type KeyPair struct {
-	sk *SecretKey
-	pk *PublicKey
+	Sk *SecretKey
+	Pk *PublicKey
 }
 
 func NewSecretKey(n *big.Int, d *big.Int) *SecretKey {
@@ -36,8 +37,8 @@ func NewPublicKey(n *big.Int, e *big.Int) *PublicKey {
 
 func NewKeyPair(sk *SecretKey, pk *PublicKey) *KeyPair {
 	kp := new(KeyPair)
-	kp.sk = sk
-	kp.pk = pk
+	kp.Sk = sk
+	kp.Pk = pk
 	return kp
 }
 
@@ -113,4 +114,28 @@ func Encrypt(plaintext *big.Int, pk *PublicKey) *big.Int {
 func Decrypt(c *big.Int, sk *SecretKey) *big.Int {
 	plaintext := new(big.Int).Exp(c, sk.d, sk.n)
 	return plaintext
+}
+
+func Sign(message *big.Int, sk *SecretKey) *big.Int {
+	hash := sha256.New()
+	byte_message := message.Bytes()
+	// Skip padding
+	hash.Write(byte_message)
+	bs := hash.Sum(nil)
+	hashed_message := new(big.Int).SetBytes(bs)
+
+	signature := new(big.Int).Exp(hashed_message, sk.d, sk.n)
+	return signature
+}
+
+func Verify(message *big.Int, signature *big.Int, pk *PublicKey) bool {
+	hash := sha256.New()
+	byte_message := message.Bytes()
+	// Skip padding
+	hash.Write(byte_message)
+	bs := hash.Sum(nil)
+	hashed_message := new(big.Int).SetBytes(bs)
+
+	recovered_hash := new(big.Int).Exp(signature, pk.e, pk.n)
+	return recovered_hash.Cmp(hashed_message) == 0
 }
